@@ -2,17 +2,16 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// ROOT ROUTE - This fixes the "Not Found" error!
+// ✅ Root route (FIXES "Not Found")
 app.get('/', (req, res) => {
     res.json({
         status: 'online',
         message: '🚀 Instagram DM Automation Bot is running!',
         endpoints: {
-            webhook: '/webhook (GET for verification, POST for receiving DMs)',
-            sendDm: '/send-dm (POST for sending manual DMs)',
-            health: '/health (GET for health check)'
-        },
-        timestamp: new Date().toISOString()
+            webhook: '/webhook',
+            sendDm: '/send-dm',
+            health: '/health'
+        }
     });
 });
 
@@ -23,10 +22,9 @@ app.get('/webhook', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+    res.json({ status: 'healthy' });
 });
 
-// Start server
 app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
 });
