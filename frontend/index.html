@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram DM Automation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border-left: 4px solid #4CAF50;
+        }
+        .status-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-card .value {
+            font-size: 14px;
+            color: #1a1a1a;
+            margin-top: 4px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+        }
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .input-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .log-area {
+            margin-top: 20px;
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-area .log-entry {
+            color: #d4d4d4;
+            margin-bottom: 4px;
+            line-height: 1.6;
+        }
+        .log-area .time {
+            color: #6a9955;
+        }
+        .log-area .message {
+            color: #dcdcaa;
+        }
+        .log-area .error {
+            color: #f14c4c;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .badge.online {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .badge.offline {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <span>📨</span> DM Automation
+            <span class="badge online" id="statusBadge">● Live</span>
+        </h1>
+        <p class="subtitle">Send automated replies to Instagram DMs</p>
+
+        <div class="status-card">
+            <div class="label">🔗 Webhook Status</div>
+            <div class="value" id="webhookStatus">✅ Connected to server</div>
+        </div>
+
+        <div class="input-group">
+            <label>👤 Instagram User ID</label>
+            <input type="text" id="userIdInput" placeholder="Enter Instagram user ID">
+        </div>
+
+        <div class="input-group">
+            <label>💬 Message</label>
+            <textarea id="messageInput" placeholder="Type your message here...">Hello! Thanks for reaching out!</textarea>
+        </div>
+
+        <button class="btn" id="sendBtn">📤 Send DM</button>
+
+        <div class="log-area" id="logArea">
+            <div class="log-entry">
+                <span class="time">[System]</span>
+                <span class="message">🚀 Dashboard initialized</span>
+            </div>
+            <div class="log-entry">
+                <span class="time">[System]</span>
+                <span class="message">⏳ Waiting for actions...</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            🔗 Webhook URL: <span id="webhookUrlDisplay">https://your-app.railway.app/webhook</span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        const logArea = document.getElementById('logArea');
+        const sendBtn = document.getElementById('sendBtn');
+        const userIdInput = document.getElementById('userIdInput');
+        const messageInput = document.getElementById('messageInput');
+
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const msgClass = type === 'error' ? 'error' : 'message';
+            entry.innerHTML = `
+                <span class="time">[${time}]</span>
+                <span class="${msgClass}">${message}</span>
+            `;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function sendDM() {
+            const userId = userIdInput.value.trim();
+            const message = messageInput.value.trim();
+
+            if (!userId) {
+                alert('Please enter an Instagram User ID');
+                return;
+            }
+
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = '⏳ Sending...';
+            addLog(`📤 Sending DM to ${userId}: "${message}"`);
+
+            try {
+                const response = await fetch(`${API_BASE}/send-dm`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId, message })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`✅ DM sent successfully to ${userId}`);
+                } else {
+                    addLog(`❌ Failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = '📤 Send DM';
+        }
+
+        sendBtn.addEventListener('click', sendDM);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendDM();
+            }
+        });
+
+        addLog('✨ Dashboard ready');
+        addLog(`🌐 Connected to: ${API_BASE}`);
+    </script>
+</body>
+</html>
