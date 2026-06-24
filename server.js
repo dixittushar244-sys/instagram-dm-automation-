@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Root route
+// ROOT ROUTE - This fixes the "Not Found" error!
 app.get('/', (req, res) => {
     res.json({
         status: 'online',
@@ -10,7 +10,7 @@ app.get('/', (req, res) => {
         endpoints: {
             webhook: '/webhook (GET for verification, POST for receiving DMs)',
             sendDm: '/send-dm (POST for sending manual DMs)',
-            health: '/ (GET for health check)'
+            health: '/health (GET for health check)'
         },
         timestamp: new Date().toISOString()
     });
