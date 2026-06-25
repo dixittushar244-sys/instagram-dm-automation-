@@ -103,9 +103,61 @@ async function sendInstagramDM(recipientId, message) {
 }
 
 // ============================================
-// 5. GENERATE REPLY
+// 5. GENERATE REPLY WITH OPENAI INTEGRATION
 // ============================================
 async function generateReply(userMessage) {
+    // Check if OpenAI API key exists
+    if (process.env.OPENAI_API_KEY) {
+        try {
+            console.log('🤖 Generating reply using OpenAI...');
+            
+            const openaiResponse = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are a helpful customer support bot for a business. 
+                            Keep responses friendly, concise, and professional. 
+                            Always be helpful and positive.`
+                        },
+                        {
+                            role: 'user',
+                            content: userMessage
+                        }
+                    ],
+                    max_tokens: 150,
+                    temperature: 0.7
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            const reply = openaiResponse.data.choices[0].message.content.trim();
+            console.log(`🤖 OpenAI reply: "${reply}"`);
+            return reply;
+            
+        } catch (error) {
+            console.error('❌ OpenAI error:', error.response?.data || error.message);
+            console.log('⚠️ Falling back to rule-based replies...');
+            // Fall back to rule-based replies if OpenAI fails
+            return generateRuleBasedReply(userMessage);
+        }
+    } else {
+        console.log('⚠️ No OpenAI API key found. Using rule-based replies.');
+        return generateRuleBasedReply(userMessage);
+    }
+}
+
+// ============================================
+// 5B. RULE-BASED REPLIES (Fallback)
+// ============================================
+function generateRuleBasedReply(userMessage) {
     const lowerMessage = userMessage.toLowerCase();
 
     if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
@@ -166,6 +218,7 @@ app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📝 Webhook URL: http://localhost:${PORT}/webhook`);
     console.log(`🔑 Verify Token: ${process.env.VERIFY_TOKEN}`);
+    console.log(`🤖 OpenAI: ${process.env.OPENAI_API_KEY ? '✅ ENABLED' : '❌ DISABLED'}`);
     console.log('='.repeat(50));
     console.log('Waiting for incoming messages...');
 });
