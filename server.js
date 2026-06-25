@@ -4,14 +4,13 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 10000;
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 
 // ============================================
-// 1. ROOT ROUTE - FIXES "NOT FOUND"!
+// ROOT ROUTE - FIXES "NOT FOUND"!
 // ============================================
 app.get('/', (req, res) => {
     res.json({
@@ -27,7 +26,7 @@ app.get('/', (req, res) => {
 });
 
 // ============================================
-// 2. WEBHOOK VERIFICATION (GET Request)
+// WEBHOOK VERIFICATION
 // ============================================
 app.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
@@ -35,100 +34,71 @@ app.get('/webhook', (req, res) => {
     const challenge = req.query['hub.challenge'];
 
     if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
-        console.log('✅ Webhook verified successfully!');
+        console.log('✅ Webhook verified!');
         res.status(200).send(challenge);
     } else {
-        console.log('❌ Webhook verification failed!');
         res.sendStatus(403);
     }
 });
 
 // ============================================
-// 3. RECEIVE INCOMING DMs (POST Request)
+// RECEIVE DMs
 // ============================================
 app.post('/webhook', async (req, res) => {
     try {
         const body = req.body;
-
         if (body.entry && body.entry[0].messaging) {
-            const messagingEvents = body.entry[0].messaging;
-
-            for (const event of messagingEvents) {
+            for (const event of body.entry[0].messaging) {
                 if (event.message && event.message.text) {
                     const senderId = event.sender.id;
                     const receivedMessage = event.message.text;
-
-                    console.log(`📩 Received DM from ${senderId}: "${receivedMessage}"`);
-
-                    let replyMessage = await generateReply(receivedMessage);
-                    await sendInstagramDM(senderId, replyMessage);
-                    
-                    console.log(`✅ Replied to ${senderId}: "${replyMessage}"`);
+                    console.log(`📩 Received: "${receivedMessage}"`);
+                    const reply = await generateReply(receivedMessage);
+                    await sendInstagramDM(senderId, reply);
                 }
             }
         }
         res.sendStatus(200);
     } catch (error) {
-        console.error('❌ Error processing webhook:', error);
+        console.error('Error:', error);
         res.sendStatus(500);
     }
 });
 
 // ============================================
-// 4. SEND DM FUNCTION
+// SEND DM FUNCTION
 // ============================================
 async function sendInstagramDM(recipientId, message) {
     try {
         const url = `https://graph.facebook.com/v18.0/${process.env.INSTAGRAM_BUSINESS_ID}/messages`;
         const response = await axios.post(
             url,
-            {
-                recipient: { id: recipientId },
-                message: { text: message }
-            },
-            {
-                params: {
-                    access_token: process.env.INSTAGRAM_ACCESS_TOKEN
-                }
-            }
+            { recipient: { id: recipientId }, message: { text: message } },
+            { params: { access_token: process.env.INSTAGRAM_ACCESS_TOKEN } }
         );
-        console.log('✅ DM sent successfully');
         return response.data;
     } catch (error) {
-        console.error('❌ Error sending DM:');
-        console.error('Status:', error.response?.status);
-        console.error('Data:', error.response?.data);
+        console.error('Error sending DM:', error.message);
         throw error;
     }
 }
 
 // ============================================
-// 5. GENERATE REPLY WITH OPENAI INTEGRATION
+// GENERATE REPLY WITH OPENAI
 // ============================================
 async function generateReply(userMessage) {
-    // Check if OpenAI API key exists
     if (process.env.OPENAI_API_KEY) {
         try {
-            console.log('🤖 Generating reply using OpenAI...');
-            
-            const openaiResponse = await axios.post(
+            console.log('🤖 Using OpenAI...');
+            const response = await axios.post(
                 'https://api.openai.com/v1/chat/completions',
                 {
                     model: 'gpt-3.5-turbo',
                     messages: [
-                        {
-                            role: 'system',
-                            content: `You are a helpful customer support bot for a business. 
-                            Keep responses friendly, concise, and professional. 
-                            Always be helpful and positive.`
-                        },
-                        {
-                            role: 'user',
-                            content: userMessage
-                        }
+                        { role: 'system', content: 'You are a helpful customer support bot.' },
+                        { role: 'user', content: userMessage }
                     ],
-                    max_tokens: 150,
-                    temperature: 0.7
+                    max_tokens: 150
                 },
                 {
                     headers: {
@@ -137,88 +107,51 @@ async function generateReply(userMessage) {
                     }
                 }
             );
-            
-            const reply = openaiResponse.data.choices[0].message.content.trim();
-            console.log(`🤖 OpenAI reply: "${reply}"`);
-            return reply;
-            
+            return response.data.choices[0].message.content.trim();
         } catch (error) {
-            console.error('❌ OpenAI error:', error.response?.data || error.message);
-            console.log('⚠️ Falling back to rule-based replies...');
-            // Fall back to rule-based replies if OpenAI fails
-            return generateRuleBasedReply(userMessage);
+            console.error('OpenAI error:', error.message);
+            return fallbackReply(userMessage);
         }
-    } else {
-        console.log('⚠️ No OpenAI API key found. Using rule-based replies.');
-        return generateRuleBasedReply(userMessage);
     }
+    return fallbackReply(userMessage);
+}
+
+function fallbackReply(message) {
+    const m = message.toLowerCase();
+    if (m.includes('hello') || m.includes('hi')) return 'Hello! 👋 How can I help?';
+    if (m.includes('price') || m.includes('cost')) return 'Pricing starts at $49/month.';
+    if (m.includes('help')) return 'I\'m here to help! What do you need?';
+    if (m.includes('thank')) return 'You\'re welcome! 😊';
+    return 'Thanks for your message! Our team will get back to you shortly.';
 }
 
 // ============================================
-// 5B. RULE-BASED REPLIES (Fallback)
-// ============================================
-function generateRuleBasedReply(userMessage) {
-    const lowerMessage = userMessage.toLowerCase();
-
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-        return 'Hello! 👋 How can I help you today?';
-    } else if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('how much')) {
-        return 'Our pricing starts at $49/month. Would you like more details?';
-    } else if (lowerMessage.includes('help') || lowerMessage.includes('support') || lowerMessage.includes('assist')) {
-        return 'I\'m here to help! What do you need assistance with?';
-    } else if (lowerMessage.includes('thank')) {
-        return 'You\'re welcome! 😊 Have a great day!';
-    } else if (lowerMessage.includes('yes') || lowerMessage.includes('ok') || lowerMessage.includes('sure')) {
-        return 'Great! Let me know how I can assist you further.';
-    } else if (lowerMessage.includes('bye') || lowerMessage.includes('goodbye')) {
-        return 'Goodbye! Feel free to reach out anytime. 👋';
-    } else if (lowerMessage.includes('instagram') || lowerMessage.includes('social media')) {
-        return 'We can help you grow your Instagram presence! What would you like to know?';
-    } else {
-        return 'Thanks for your message! Our team will get back to you shortly.';
-    }
-}
-
-// ============================================
-// 6. MANUAL DM SEND
+// MANUAL DM SEND
 // ============================================
 app.post('/send-dm', async (req, res) => {
     const { userId, message } = req.body;
-    
     if (!userId || !message) {
-        return res.status(400).json({ error: 'userId and message are required' });
+        return res.status(400).json({ error: 'userId and message required' });
     }
-
     try {
         const result = await sendInstagramDM(userId, message);
-        res.json({ success: true, message: 'DM sent successfully!', result });
+        res.json({ success: true, result });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
 // ============================================
-// 7. HEALTH CHECK
+// HEALTH CHECK
 // ============================================
 app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'healthy',
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-    });
+    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 // ============================================
-// 8. START SERVER
+// START SERVER
 // ============================================
 app.listen(PORT, () => {
-    console.log('='.repeat(50));
-    console.log('🚀 Instagram DM Automation Bot');
-    console.log('='.repeat(50));
     console.log(`✅ Server running on port ${PORT}`);
-    console.log(`📝 Webhook URL: http://localhost:${PORT}/webhook`);
-    console.log(`🔑 Verify Token: ${process.env.VERIFY_TOKEN}`);
     console.log(`🤖 OpenAI: ${process.env.OPENAI_API_KEY ? '✅ ENABLED' : '❌ DISABLED'}`);
-    console.log('='.repeat(50));
-    console.log('Waiting for incoming messages...');
 });
