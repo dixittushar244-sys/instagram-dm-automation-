@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(cors());
 
 // ============================================
-// 1. ROOT ROUTE - THIS FIXES "NOT FOUND"!
+// 1. ROOT ROUTE - FIXES "NOT FOUND"!
 // ============================================
 app.get('/', (req, res) => {
     res.json({
