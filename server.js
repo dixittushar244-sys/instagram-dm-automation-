@@ -106,7 +106,6 @@ async function sendInstagramDM(recipientId, message) {
 // 5. GENERATE REPLY WITH OPENAI
 // ============================================
 async function generateReply(userMessage) {
-    // Check if OpenAI API key exists
     if (process.env.OPENAI_API_KEY) {
         try {
             console.log('🤖 Generating reply using OpenAI...');
